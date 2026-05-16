@@ -1,14 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { RunView, CardView, EnemyView } from "@/lib/game/view";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type {
+  RunView,
+  CardView,
+  EnemyView,
+  MapNodeView,
+  StatusView
+} from "@/lib/game/view";
 
 type Action =
   | { type: "chooseNode"; nodeId: string }
   | { type: "playCard"; cardId: string; targetUid?: string }
   | { type: "endTurn" }
   | { type: "pickReward"; cardId: string }
-  | { type: "skipReward" };
+  | { type: "skipReward" }
+  | { type: "restHeal" };
 
 export default function GameClient() {
   const [run, setRun] = useState<RunView | null>(null);
@@ -78,7 +85,13 @@ export default function GameClient() {
 
       <Stats run={run} />
 
-      {run.phase === "map" && <MapPhase run={run} disabled={busy} onChoose={(id) => doAction({ type: "chooseNode", nodeId: id })} />}
+      {run.phase === "map" && (
+        <MapPhase run={run} disabled={busy} onChoose={(id) => doAction({ type: "chooseNode", nodeId: id })} />
+      )}
+
+      {run.phase === "rest" && (
+        <RestPhase disabled={busy} onRest={() => doAction({ type: "restHeal" })} />
+      )}
 
       {run.phase === "combat" && run.combat && (
         <CombatPhase
@@ -142,30 +155,101 @@ function Stats({ run }: { run: RunView }) {
   );
 }
 
-function MapPhase({ run, disabled, onChoose }:
-  { run: RunView; disabled: boolean; onChoose: (id: string) => void }) {
+// -------------------------- Map ---------------------------------------------
+
+function MapPhase({
+  run, disabled, onChoose
+}: { run: RunView; disabled: boolean; onChoose: (id: string) => void }) {
+  // Group nodes by floor for a row-per-floor layout.
+  const byFloor = useMemo(() => {
+    const m = new Map<number, MapNodeView[]>();
+    for (const n of run.map) {
+      const list = m.get(n.floor) ?? [];
+      list.push(n);
+      m.set(n.floor, list);
+    }
+    for (const list of m.values()) list.sort((a, b) => a.lane - b.lane);
+    return [...m.entries()].sort((a, b) => b[0] - a[0]); // top floor first
+  }, [run.map]);
+
   return (
     <div className="card-frame rounded-lg p-6">
       <h2 className="mb-4 font-display text-xl">The Tower</h2>
-      <ol className="space-y-2">
-        {run.map.map((node) => (
-          <li key={node.id} className="flex items-center justify-between">
-            <span className={node.visited ? "text-slate-500 line-through" : "text-slate-100"}>
-              Floor {node.floor} — {node.kind}
-            </span>
-            <button
-              disabled={disabled || !node.available}
-              onClick={() => onChoose(node.id)}
-              className="rounded bg-storm-accent px-3 py-1 text-sm font-semibold text-storm-bg disabled:opacity-30"
-            >
-              {node.available ? "Enter" : "—"}
-            </button>
-          </li>
+      <div className="space-y-3">
+        {byFloor.map(([floor, nodes]) => (
+          <div key={floor} className="flex items-center gap-3">
+            <div className="w-16 shrink-0 text-xs uppercase tracking-wider text-slate-500">
+              Floor {floor}
+            </div>
+            <div className="flex flex-1 flex-wrap gap-2">
+              {nodes.map((n) => (
+                <MapButton
+                  key={n.id}
+                  node={n}
+                  disabled={disabled || !n.available}
+                  onClick={() => onChoose(n.id)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
-      </ol>
+      </div>
     </div>
   );
 }
+
+function MapButton({
+  node, disabled, onClick
+}: { node: MapNodeView; disabled: boolean; onClick: () => void }) {
+  const glyph = nodeGlyph(node.kind);
+  const tone = nodeTone(node);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-28 items-center justify-center gap-2 rounded border px-3 py-2 text-sm transition ${tone}`}
+      title={node.kind}
+    >
+      <span className="text-lg">{glyph}</span>
+      <span className="capitalize">{node.kind}</span>
+    </button>
+  );
+}
+
+function nodeGlyph(kind: MapNodeView["kind"]): string {
+  switch (kind) {
+    case "combat": return "⚔";
+    case "elite": return "★";
+    case "rest": return "♨";
+    case "boss": return "☠";
+  }
+}
+
+function nodeTone(node: MapNodeView): string {
+  if (node.visited) return "border-slate-700 bg-slate-900 text-slate-500 line-through";
+  if (node.available) return "border-storm-accent bg-storm-accent/15 text-slate-100 hover:bg-storm-accent/30";
+  return "border-slate-700 bg-slate-900/50 text-slate-500 opacity-50 cursor-not-allowed";
+}
+
+// -------------------------- Rest --------------------------------------------
+
+function RestPhase({ disabled, onRest }: { disabled: boolean; onRest: () => void }) {
+  return (
+    <div className="card-frame flex flex-col items-center gap-4 rounded-lg p-8">
+      <h2 className="font-display text-2xl text-storm-accent">A bonfire flickers.</h2>
+      <p className="text-slate-300">Rest to recover 30% of your max HP.</p>
+      <button
+        disabled={disabled}
+        onClick={onRest}
+        className="rounded bg-storm-accent px-4 py-2 font-semibold text-storm-bg"
+      >
+        Rest
+      </button>
+    </div>
+  );
+}
+
+// ------------------------ Combat --------------------------------------------
 
 function CombatPhase({
   run, disabled, pendingCard, setPendingCard, onPlay, onEndTurn
@@ -201,18 +285,21 @@ function CombatPhase({
             key={e.uid}
             onClick={() => onEnemyClick(e)}
             disabled={disabled || !pendingCard}
-            className={`card-frame rounded-lg p-4 text-left w-56 ${
-              pendingCard ? "ring-2 ring-storm-accent" : "opacity-100"
+            className={`card-frame w-56 rounded-lg p-4 text-left ${
+              pendingCard ? "ring-2 ring-storm-accent" : ""
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="font-display text-lg">{e.name}</div>
-              {e.block > 0 && <span className="block-pip rounded px-2 text-xs font-bold">{e.block}</span>}
+              {e.block > 0 && (
+                <span className="block-pip rounded px-2 text-xs font-bold">{e.block}</span>
+              )}
             </div>
             <div className="mt-2 h-2 w-full rounded bg-slate-800">
               <div className="hp-bar h-2 rounded" style={{ width: `${(e.hp / e.maxHp) * 100}%` }} />
             </div>
             <div className="mt-1 text-xs text-slate-300">{e.hp} / {e.maxHp}</div>
+            <StatusBar statuses={e.statuses} />
             <div className="mt-3 text-xs text-storm-accent">
               Intent: {intentText(e.intent)}
             </div>
@@ -221,16 +308,17 @@ function CombatPhase({
       </div>
 
       {/* Player */}
-      <div className="card-frame flex items-center justify-between rounded-lg p-3 text-sm">
-        <div>
-          <span className="mr-3">HP {combat.player.hp}/{combat.player.maxHp}</span>
+      <div className="card-frame flex flex-wrap items-center justify-between gap-3 rounded-lg p-3 text-sm">
+        <div className="flex items-center gap-3">
+          <span>HP {combat.player.hp}/{combat.player.maxHp}</span>
           {combat.player.block > 0 && (
             <span className="block-pip rounded px-2 py-0.5 text-xs font-bold">Block {combat.player.block}</span>
           )}
+          <StatusBar statuses={combat.player.statuses} />
         </div>
         <div>Energy <span className="font-mono">{combat.player.energy}/{combat.player.maxEnergy}</span></div>
         <div>Turn <span className="font-mono">{combat.turn}</span></div>
-        <div>Draw {combat.drawCount} | Discard {combat.discardCount} | Exhaust {combat.exhaustCount}</div>
+        <div className="text-xs text-slate-400">Draw {combat.drawCount} · Discard {combat.discardCount} · Exhaust {combat.exhaustCount}</div>
         <button
           onClick={onEndTurn}
           disabled={disabled}
@@ -259,7 +347,9 @@ function CombatPhase({
                 <div className="rounded-full bg-storm-accent px-2 text-xs font-bold text-storm-bg">{c.cost}</div>
               </div>
               <div className="mt-2 text-xs text-slate-300">{c.description}</div>
-              {c.exhaust && <div className="mt-1 text-[10px] uppercase tracking-wider text-storm-danger">Exhaust</div>}
+              {c.exhaust && (
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-storm-danger">Exhaust</div>
+              )}
             </button>
           );
         })}
@@ -275,14 +365,44 @@ function CombatPhase({
   );
 }
 
+function StatusBar({ statuses }: { statuses: StatusView }) {
+  const chips: { label: string; value: number; tone: string }[] = [];
+  if (statuses.vulnerable > 0) chips.push({ label: "Vulnerable", value: statuses.vulnerable, tone: "bg-storm-danger/70" });
+  if (statuses.weak > 0) chips.push({ label: "Weak", value: statuses.weak, tone: "bg-amber-700" });
+  if (statuses.strength !== 0) chips.push({
+    label: "Strength",
+    value: statuses.strength,
+    tone: statuses.strength > 0 ? "bg-emerald-700" : "bg-slate-600"
+  });
+  if (chips.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {chips.map((c) => (
+        <span key={c.label} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${c.tone}`}>
+          {c.label} {c.value > 0 ? c.value : c.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function intentText(intent: EnemyView["intent"]): string {
   switch (intent.kind) {
     case "attack": return `Attack ${intent.damage}`;
     case "defend": return `Block ${intent.block}`;
     case "attack_defend": return `Attack ${intent.damage} + Block ${intent.block}`;
-    case "buff": return "Buff";
+    case "buff_strength": return `+${intent.amount} Strength`;
+    case "debuff": {
+      const parts: string[] = [];
+      if (intent.vulnerable) parts.push(`Vuln ${intent.vulnerable}`);
+      if (intent.weak) parts.push(`Weak ${intent.weak}`);
+      return `Debuff (${parts.join(", ")})`;
+    }
+    case "heal": return `Heal ${intent.amount}`;
   }
 }
+
+// ------------------------ Reward --------------------------------------------
 
 function RewardPhase({ options, disabled, onPick, onSkip }: {
   options: CardView[];

@@ -66,13 +66,14 @@ openssl rand -base64 32
 3. Add `AUTH_SECRET`, `AUTH_URL` (your production URL), and your chosen auth provider keys to **Project Settings → Environment Variables**.
 4. Run the schema once against the Postgres database (e.g. `npm run db:init` locally with the production `POSTGRES_URL` pulled by `vercel env pull`).
 
-## Game design (vertical slice)
+## Game design
 
-- **Character:** Stormcaller, 50 HP, 3 energy/turn, 5-card hand.
+- **Character:** Stormcaller, 60 HP, 3 energy/turn, 5-card hand.
 - **Starter deck (10):** 5× Strike, 4× Defend, 1× Thunderclap.
-- **Reward pool:** Bash, Iron Wave, Cleave, Surge, Thunderclap.
-- **Enemies:** Goblin (light), Brute (mid), Tower Guard (boss).
-- **Map:** 2 combat floors + boss floor. Linear, but the data model already supports branching paths — just extend `generateMap` in `src/lib/game/engine.ts`.
+- **Status effects:** Vulnerable (target takes +50% attack damage), Weak (attacker deals -25%), Strength (flat attack bonus). Vulnerable and Weak tick down at the end of the owner's turn.
+- **Cards (~20 total):** common pool (Iron Wave, Cleave, Heavy Slash, Twin Strike, Shrug It Off, Pommel Strike, True Grit, Body Slam, Sucker Punch, Thunderclap), rare pool (Bash, Surge, Pummel, Sword Boomerang, Bloodletting, Disarm, Inflame, Limit Break).
+- **Enemies:** Goblin, Brute, Acid Slime, Tower Spider, Cultist, Tower Sentry, plus elites (Bandit Captain) and two possible bosses (Tower Guard, The Stormlord).
+- **Map:** 6 floors, branching, with combat / elite / rest / boss node kinds. Elites & bosses bias rewards toward the rare pool.
 
 ## Adding content
 

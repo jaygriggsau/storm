@@ -1,4 +1,4 @@
-import type { RunState, EnemyState, CombatState, MapNode } from "./types";
+import type { RunState, EnemyState, CombatState, MapNode, Statuses } from "./types";
 import { CARDS, ENEMY_TEMPLATES } from "./content";
 
 // The view layer is the anti-cheat barrier between the server's full state
@@ -20,17 +20,29 @@ export type CardView = {
   exhaust: boolean;
 };
 
+export type StatusView = Statuses;
+
 export type EnemyView = {
   uid: string;
   name: string;
   hp: number;
   maxHp: number;
   block: number;
+  statuses: StatusView;
   intent: EnemyState["intent"];
 };
 
+export type PlayerView = {
+  hp: number;
+  maxHp: number;
+  block: number;
+  energy: number;
+  maxEnergy: number;
+  statuses: StatusView;
+};
+
 export type CombatView = {
-  player: CombatState["player"];
+  player: PlayerView;
   enemies: EnemyView[];
   hand: CardView[];
   drawCount: number;
@@ -45,15 +57,18 @@ export type MapNodeView = {
   id: string;
   kind: MapNode["kind"];
   floor: number;
+  lane: number;
+  next: string[];
   visited: boolean;
   available: boolean;
+  isCurrent: boolean;
 };
 
 export type RunView = {
   id: string;
   phase: RunState["phase"];
   floor: number;
-  player: RunState["player"];
+  player: PlayerView;
   gold: number;
   deck: CardView[];
   map: MapNodeView[];
@@ -81,6 +96,7 @@ function enemyView(e: EnemyState): EnemyView {
     hp: e.hp,
     maxHp: e.maxHp,
     block: e.block,
+    statuses: e.statuses,
     intent: e.intent
   };
 }
@@ -97,8 +113,11 @@ export function toView(state: RunState): RunView {
       id: n.id,
       kind: n.kind,
       floor: n.floor,
+      lane: n.lane,
+      next: n.next,
       visited: n.visited,
-      available: n.available
+      available: n.available,
+      isCurrent: state.currentNodeId === n.id
     })),
     currentNodeId: state.currentNodeId,
     combat: state.combat

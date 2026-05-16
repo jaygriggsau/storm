@@ -8,6 +8,7 @@ import {
   endTurn,
   pickReward,
   playCard,
+  restHeal,
   skipReward
 } from "@/lib/game/engine";
 import { toView } from "@/lib/game/view";
@@ -24,7 +25,8 @@ const ActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("endTurn") }),
   z.object({ type: z.literal("pickReward"), cardId: z.string().max(64) }),
-  z.object({ type: z.literal("skipReward") })
+  z.object({ type: z.literal("skipReward") }),
+  z.object({ type: z.literal("restHeal") })
 ]);
 
 const BodySchema = z.object({
@@ -64,6 +66,9 @@ export async function POST(req: Request) {
           break;
         case "skipReward":
           skipReward(s);
+          break;
+        case "restHeal":
+          restHeal(s);
           break;
       }
     });

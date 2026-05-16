@@ -1,5 +1,6 @@
 import { pool } from "@/lib/db";
 import type { RunState } from "./types";
+import { isCurrentSchema } from "./engine";
 
 // Repository for run rows. Persistence is intentionally pessimistic:
 // every action does a transactional `select ... for update` so concurrent
@@ -22,7 +23,13 @@ export async function loadActiveRun(userId: number): Promise<LoadedRun | null> {
     [userId]
   );
   if (rows.length === 0) return null;
-  return { state: rows[0]!.state, version: rows[0]!.version, lastAction: rows[0]!.last_action };
+  const row = rows[0]!;
+  if (!isCurrentSchema(row.state)) {
+    // Schema bumped: drop the stale run rather than try to migrate.
+    await discardActive(userId);
+    return null;
+  }
+  return { state: row.state, version: row.version, lastAction: row.last_action };
 }
 
 export async function createRun(state: RunState): Promise<void> {
@@ -69,6 +76,14 @@ export async function mutateActiveRun(
     );
     if (rows.length === 0) throw new NotFound("no active run");
     const row = rows[0]!;
+    if (!isCurrentSchema(row.state)) {
+      await client.query(
+        `update runs set status = 'abandoned', updated_at = now() where id = $1`,
+        [row.id]
+      );
+      await client.query("commit");
+      throw new NotFound("run schema is outdated; start a new run");
+    }
 
     if (idempotencyKey && row.last_action === idempotencyKey) {
       // Replay: return the row as-is.
