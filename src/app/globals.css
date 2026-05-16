@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1d2748 0%, #0b0d18 60%);
+  }
+}
+
+.card-frame {
+  background: linear-gradient(180deg, #1e2542 0%, #11152a 100%);
+  border: 1px solid rgba(122, 162, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.hp-bar {
+  background: linear-gradient(90deg, #ff5d6c 0%, #c43d4d 100%);
+}
+.block-pip {
+  background: linear-gradient(180deg, #b9c8ff, #7aa2ff);
+  color: #0b0d18;
+}
