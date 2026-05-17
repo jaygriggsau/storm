@@ -9,8 +9,8 @@ A browser-based deck-building roguelike in the vein of *Slay the Spire*, built t
 | Hosting | Vercel |
 | Frontend | Next.js 15 (App Router) + React 19 + Tailwind |
 | Backend | Next.js Route Handlers |
-| Storage | Vercel Postgres (any Postgres works) |
-| Auth | Auth.js v5, email magic-link (Resend) and GitHub OAuth |
+| Storage | Neon Postgres (via the Vercel ↔ Neon integration) |
+| Auth | Neon Auth (Stack Auth-powered) |
 | Language | TypeScript |
 
 ## Anti-cheat architecture
@@ -26,7 +26,7 @@ The threat model: the client is fully untrusted. A determined player can edit DO
 | Each mutation is a `select ... for update` transaction | `src/lib/game/repo.ts` |
 | Idempotency key prevents replayed actions | `src/lib/game/repo.ts`, `runs.last_action` |
 | Per-user token-bucket rate limit | `src/lib/rate-limit.ts` |
-| Auth.js DB-backed sessions (HttpOnly cookie) | `src/auth.ts` |
+| Neon Auth (HttpOnly cookie session, server-issued) | `src/stack.ts`, `src/app/handler/[...stack]/page.tsx` |
 | Zod-validated request bodies | `src/app/api/game/action/route.ts` |
 
 The client cannot:
@@ -40,31 +40,44 @@ The client cannot:
 ## Setup
 
 ```bash
-pnpm install   # or npm/yarn
+npm install
 
 cp .env.example .env.local
-# fill in POSTGRES_URL, AUTH_SECRET, and at least one auth provider:
-#   AUTH_RESEND_KEY + AUTH_RESEND_FROM   (email magic-link)
-#   AUTH_GITHUB_ID + AUTH_GITHUB_SECRET  (GitHub OAuth)
+# Fill in:
+#   DATABASE_URL                              from Neon
+#   NEXT_PUBLIC_STACK_PROJECT_ID              from your Neon project's Auth tab
+#   NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY  from your Neon project's Auth tab
+#   STACK_SECRET_SERVER_KEY                   from your Neon project's Auth tab
 
-npm run db:init   # applies scripts/schema.sql (auth.js + game tables)
+npm run db:init   # applies scripts/schema.sql (the runs table)
 npm run dev
 ```
 
 Visit http://localhost:3000.
 
-### Generating `AUTH_SECRET`
+### Enabling Neon Auth
 
-```bash
-openssl rand -base64 32
+1. In the Neon console, open your project → **Auth** → click **Enable**.
+2. Copy the three keys into `.env.local`.
+3. Neon will auto-provision `neon_auth.users_sync` in your database; the `runs_user_id_fkey` constraint in `scripts/schema.sql` will be added on the next `db:init` run.
+
+### Migrating from Auth.js (older revisions of this app)
+
+The user-id column type changed from INTEGER to TEXT, so the `runs` table can't be migrated in place. From `psql`:
+
+```sql
+DROP TABLE IF EXISTS runs;
+DROP TABLE IF EXISTS sessions, accounts, verification_token, users;
 ```
+
+Then re-run `npm run db:init`.
 
 ## Deploying to Vercel
 
 1. Push to a Git repo and import into Vercel.
-2. Add a **Vercel Postgres** integration; the `POSTGRES_URL` env var is set automatically.
-3. Add `AUTH_SECRET`, `AUTH_URL` (your production URL), and your chosen auth provider keys to **Project Settings → Environment Variables**.
-4. Run the schema once against the Postgres database (e.g. `npm run db:init` locally with the production `POSTGRES_URL` pulled by `vercel env pull`).
+2. Connect a **Neon** database via the Vercel integration (or add `DATABASE_URL` manually).
+3. Add the three `NEXT_PUBLIC_STACK_*` / `STACK_SECRET_SERVER_KEY` env vars from your Neon Auth dashboard.
+4. Run the schema once (e.g. `npm run db:init` locally with `vercel env pull` having populated `.env.local`).
 
 ## Game design
 
@@ -88,15 +101,15 @@ openssl rand -base64 32
 ```
 src/
   app/
+    handler/[...stack]/page.tsx      Neon Auth (Stack) sign-in / sign-up / account UI
     api/
-      auth/[...nextauth]/route.ts    Auth.js handlers
       game/new-run/route.ts          POST start/resume a run
       game/state/route.ts            GET current run view
-      game/action/route.ts           POST one of {chooseNode|playCard|endTurn|pickReward|skipReward}
+      game/action/route.ts           POST one of {chooseNode|playCard|endTurn|pickReward|skipReward|restHeal|restSmith|upgradeCard|skipSmith}
     play/page.tsx                    Authenticated game page
-    page.tsx                         Landing + sign-in
+    page.tsx                         Landing + sign-in links
     layout.tsx, globals.css
-  auth.ts                            Auth.js v5 config
+  stack.ts                           Neon Auth (Stack) server config
   components/GameClient.tsx          The React UI
   lib/
     db.ts                            pg.Pool singleton

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { getStackServerApp } from "@/stack";
 import { mutateActiveRun, NotFound } from "@/lib/game/repo";
 import {
   BadRequest,
@@ -41,11 +41,10 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  const userId = session?.user && (session.user as { id?: number | string }).id;
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const user = await getStackServerApp().getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  if (!take(`act:${userId}`)) {
+  if (!take(`act:${user.id}`)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
@@ -56,7 +55,7 @@ export async function POST(req: Request) {
   const { action, idempotencyKey } = parsed.data;
 
   try {
-    const { state } = await mutateActiveRun(Number(userId), idempotencyKey ?? null, (s) => {
+    const { state } = await mutateActiveRun(user.id, idempotencyKey ?? null, (s) => {
       switch (action.type) {
         case "chooseNode":
           chooseNode(s, action.nodeId);

@@ -55,7 +55,7 @@ function saveRng(state: RunState, rng: RngState): void {
 
 // --------------------------------------------------------------- Run setup --
 
-export function newRun(userId: number, characterId: CharacterId): RunState {
+export function newRun(userId: string, characterId: CharacterId): RunState {
   const character = CHARACTERS[characterId];
   const seed = nanoid(16);
   const rng = { s: rngFromString(seed) };

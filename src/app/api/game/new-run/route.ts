@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { getStackServerApp } from "@/stack";
 import { createRun, discardActive, loadActiveRun } from "@/lib/game/repo";
 import { newRun } from "@/lib/game/engine";
 import { toView } from "@/lib/game/view";
@@ -15,11 +15,10 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  const userId = session?.user && (session.user as { id?: number | string }).id;
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const user = await getStackServerApp().getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  if (!take(`new:${userId}`)) {
+  if (!take(`new:${user.id}`)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
@@ -29,7 +28,7 @@ export async function POST(req: Request) {
   }
   const { force, character } = parsed.data;
 
-  const existing = await loadActiveRun(Number(userId));
+  const existing = await loadActiveRun(user.id);
   if (existing && !force) {
     return NextResponse.json({ run: toView(existing.state) });
   }
@@ -39,10 +38,10 @@ export async function POST(req: Request) {
   }
 
   if (existing && force) {
-    await discardActive(Number(userId));
+    await discardActive(user.id);
   }
 
-  const state = newRun(Number(userId), character);
+  const state = newRun(user.id, character);
   await createRun(state);
   return NextResponse.json({ run: toView(state) });
 }

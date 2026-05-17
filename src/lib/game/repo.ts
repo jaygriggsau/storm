@@ -13,7 +13,7 @@ export type LoadedRun = {
   lastAction: string | null;
 };
 
-export async function loadActiveRun(userId: number): Promise<LoadedRun | null> {
+export async function loadActiveRun(userId: string): Promise<LoadedRun | null> {
   const { rows } = await pool.query<{ state: RunState; version: number; last_action: string | null }>(
     `select state, version, last_action
        from runs
@@ -40,7 +40,7 @@ export async function createRun(state: RunState): Promise<void> {
   );
 }
 
-export async function discardActive(userId: number): Promise<void> {
+export async function discardActive(userId: string): Promise<void> {
   await pool.query(
     `update runs set status = 'abandoned', updated_at = now()
       where user_id = $1 and status = 'active'`,
@@ -52,7 +52,7 @@ export async function discardActive(userId: number): Promise<void> {
 // `select for update`, and supports an idempotency key so a retried
 // request from a flaky network does not apply the same action twice.
 export async function mutateActiveRun(
-  userId: number,
+  userId: string,
   idempotencyKey: string | null,
   mutate: (state: RunState) => void
 ): Promise<{ state: RunState; status: string }> {

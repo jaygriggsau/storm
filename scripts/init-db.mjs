@@ -6,9 +6,9 @@ import pg from "pg";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const sql = readFileSync(join(__dirname, "schema.sql"), "utf8");
 
-const url = process.env.POSTGRES_URL;
+const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
 if (!url) {
-  console.error("POSTGRES_URL not set. Create .env.local from .env.example.");
+  console.error("DATABASE_URL not set. Create .env.local from .env.example.");
   process.exit(1);
 }
 

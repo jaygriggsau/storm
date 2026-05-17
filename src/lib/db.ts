@@ -8,7 +8,7 @@ declare global {
 export const pool: Pool =
   global.__pgPool ??
   new Pool({
-    connectionString: process.env.POSTGRES_URL,
+    connectionString: process.env.DATABASE_URL ?? process.env.POSTGRES_URL,
     max: 5
   });
 
