@@ -1,12 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getStackServerApp } from "@/stack";
+import { getStackServerApp, isAuthConfigured } from "@/stack";
+import SetupNeeded from "@/components/SetupNeeded";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const user = await getStackServerApp().getUser();
-  if (user) redirect("/play");
+  if (!isAuthConfigured()) return <SetupNeeded />;
+
+  try {
+    const user = await getStackServerApp().getUser();
+    if (user) redirect("/play");
+  } catch (err) {
+    // Surface in Vercel function logs but don't 500 the page.
+    if (!isRedirectError(err)) {
+      console.error("HomePage getUser failed", err);
+      return <SetupNeeded />;
+    }
+    throw err;
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-6 py-12">
@@ -40,5 +52,16 @@ export default async function HomePage() {
         <Link href="https://neon.com" className="hover:underline">Auth by Neon</Link>
       </footer>
     </main>
+  );
+}
+
+// next/navigation's redirect() works by throwing — let those through.
+function isRedirectError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    typeof (err as { digest: unknown }).digest === "string" &&
+    (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
   );
 }

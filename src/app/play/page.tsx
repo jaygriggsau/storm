@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getStackServerApp } from "@/stack";
+import { getStackServerApp, isAuthConfigured } from "@/stack";
 import GameClient from "@/components/GameClient";
+import SetupNeeded from "@/components/SetupNeeded";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlayPage() {
-  const user = await getStackServerApp().getUser();
+  if (!isAuthConfigured()) return <SetupNeeded />;
+
+  let user;
+  try {
+    user = await getStackServerApp().getUser();
+  } catch (err) {
+    console.error("PlayPage getUser failed", err);
+    return <SetupNeeded />;
+  }
   if (!user) redirect("/handler/sign-in");
 
   return (
