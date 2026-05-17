@@ -68,10 +68,11 @@ openssl rand -base64 32
 
 ## Game design
 
-- **Character:** Stormcaller, 60 HP, 3 energy/turn, 5-card hand.
-- **Starter deck (10):** 5× Strike, 4× Defend, 1× Thunderclap.
-- **Status effects:** Vulnerable (target takes +50% attack damage), Weak (attacker deals -25%), Strength (flat attack bonus). Vulnerable and Weak tick down at the end of the owner's turn.
-- **Cards (~20 total):** common pool (Iron Wave, Cleave, Heavy Slash, Twin Strike, Shrug It Off, Pommel Strike, True Grit, Body Slam, Sucker Punch, Thunderclap), rare pool (Bash, Surge, Pummel, Sword Boomerang, Bloodletting, Disarm, Inflame, Limit Break).
+- **Characters:**
+  - **Stormcaller** — 60 HP. Single-target burst, Strength powers. Starter: 5 Strike, 4 Defend, 1 Thunderclap. Class cards: Bash, Surge, Pummel, Sword Boomerang, Limit Break (rare); Heavy Slash, Twin Strike, Pommel Strike, Sucker Punch (common).
+  - **Tempest** — 50 HP. AoE damage and status focus. Starter: 4 Spark, 4 Ward, 1 Chain Bolt, 1 Thunderclap. Class cards: Shock Wave, Conduit, Overcharge, Tempest (rare); Jolt, Static Discharge, Lightning Rod, Insulate (common).
+- **Neutral pool (both):** Iron Wave, Cleave, Shrug It Off, True Grit, Body Slam, Bloodletting, Disarm, Inflame.
+- **Status effects:** Vulnerable (+50% attack damage taken), Weak (−25% attack damage dealt), Strength (flat attack bonus). Vulnerable and Weak tick down at the end of the owner's turn.
 - **Enemies:** Goblin, Brute, Acid Slime, Tower Spider, Cultist, Tower Sentry, plus elites (Bandit Captain) and two possible bosses (Tower Guard, The Stormlord).
 - **Map:** 6 floors, branching, with combat / elite / rest / boss node kinds. Elites & bosses bias rewards toward the rare pool.
 

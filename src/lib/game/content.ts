@@ -298,24 +298,139 @@ export const CARDS: Record<CardId, Card> = {
         combat.player.statuses.strength *= 2;
       }
     }
+  },
+
+  // ============================================================
+  // Tempest cards
+  // ============================================================
+
+  // ---- Tempest starter ----------------------------------------------------
+  spark: {
+    id: "spark",
+    name: "Spark",
+    cost: 1,
+    targeting: "enemy",
+    description: "Deal 5 damage.",
+    apply: ({ combat, target }) => target && dealAttackToEnemy(combat, target, 5)
+  },
+  ward: {
+    id: "ward",
+    name: "Ward",
+    cost: 1,
+    targeting: "self",
+    description: "Gain 5 block.",
+    apply: ({ combat }) => gainBlock(combat, 5)
+  },
+  chain_bolt: {
+    id: "chain_bolt",
+    name: "Chain Bolt",
+    cost: 1,
+    targeting: "all_enemies",
+    description: "Deal 4 damage to a random enemy twice.",
+    apply: ({ combat, rng }) => {
+      for (let i = 0; i < 2; i++) {
+        const alive = combat.enemies.filter((e) => e.hp > 0);
+        if (alive.length === 0) return;
+        dealAttackToEnemy(combat, pick(rng, alive), 4);
+      }
+    }
+  },
+
+  // ---- Tempest class common ----------------------------------------------
+  jolt: {
+    id: "jolt",
+    name: "Jolt",
+    cost: 0,
+    targeting: "enemy",
+    description: "Deal 3 damage.",
+    apply: ({ combat, target }) => target && dealAttackToEnemy(combat, target, 3)
+  },
+  static_discharge: {
+    id: "static_discharge",
+    name: "Static Discharge",
+    cost: 1,
+    targeting: "all_enemies",
+    description: "Deal 4 damage to ALL enemies.",
+    apply: ({ combat }) => {
+      for (const e of combat.enemies) dealAttackToEnemy(combat, e, 4);
+    }
+  },
+  lightning_rod: {
+    id: "lightning_rod",
+    name: "Lightning Rod",
+    cost: 1,
+    targeting: "enemy",
+    description: "Deal 8 damage. Draw 1.",
+    apply: ({ combat, target, drawCards }) => {
+      if (target) dealAttackToEnemy(combat, target, 8);
+      drawCards(1);
+    }
+  },
+  insulate: {
+    id: "insulate",
+    name: "Insulate",
+    cost: 1,
+    targeting: "self",
+    description: "Gain 8 block.",
+    apply: ({ combat }) => gainBlock(combat, 8)
+  },
+
+  // ---- Tempest class rare ------------------------------------------------
+  shock_wave: {
+    id: "shock_wave",
+    name: "Shock Wave",
+    cost: 1,
+    targeting: "all_enemies",
+    description: "Apply 2 Vulnerable to ALL enemies. Exhaust.",
+    exhaust: true,
+    apply: ({ combat }) => {
+      for (const e of combat.enemies) e.statuses.vulnerable += 2;
+    }
+  },
+  conduit: {
+    id: "conduit",
+    name: "Conduit",
+    cost: 1,
+    targeting: "self",
+    description: "Gain 3 Strength. Exhaust.",
+    exhaust: true,
+    apply: ({ combat }) => {
+      combat.player.statuses.strength += 3;
+    }
+  },
+  overcharge: {
+    id: "overcharge",
+    name: "Overcharge",
+    cost: 0,
+    targeting: "self",
+    description: "Lose 4 HP. Gain 2 energy. Exhaust.",
+    exhaust: true,
+    apply: ({ combat }) => {
+      combat.player.hp = Math.max(1, combat.player.hp - 4);
+      combat.player.energy += 2;
+    }
+  },
+  tempest: {
+    id: "tempest",
+    name: "Tempest",
+    cost: 2,
+    targeting: "all_enemies",
+    description: "Deal 5 damage to ALL enemies. Apply 1 Vulnerable to ALL.",
+    apply: ({ combat }) => {
+      for (const e of combat.enemies) {
+        dealAttackToEnemy(combat, e, 5);
+        e.statuses.vulnerable += 1;
+      }
+    }
   }
 };
 
-export const REWARD_POOL_COMMON: CardId[] = [
-  "iron_wave", "cleave", "thunderclap", "heavy_slash",
-  "twin_strike", "shrug_it_off", "pommel_strike", "true_grit",
-  "body_slam", "sucker_punch"
+// Reward pools available to every character.
+export const NEUTRAL_COMMON: CardId[] = [
+  "iron_wave", "cleave", "shrug_it_off", "true_grit", "body_slam"
 ];
-
-export const REWARD_POOL_RARE: CardId[] = [
-  "bash", "surge", "pummel", "sword_boomerang",
-  "bloodletting", "disarm", "inflame", "limit_break"
-];
-
-export const STARTER_DECK: CardId[] = [
-  "strike", "strike", "strike", "strike", "strike",
-  "defend", "defend", "defend", "defend",
-  "thunderclap"
+export const NEUTRAL_RARE: CardId[] = [
+  "bloodletting", "disarm", "inflame"
 ];
 
 // ---------- Enemies ---------------------------------------------------------

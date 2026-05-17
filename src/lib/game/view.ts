@@ -1,5 +1,6 @@
 import type { RunState, EnemyState, CombatState, MapNode, Statuses } from "./types";
 import { CARDS, ENEMY_TEMPLATES } from "./content";
+import { CHARACTERS } from "./characters";
 
 // The view layer is the anti-cheat barrier between the server's full state
 // and the client. Anything the player isn't allowed to know stops here:
@@ -66,6 +67,8 @@ export type MapNodeView = {
 
 export type RunView = {
   id: string;
+  character: RunState["character"];
+  characterName: string;
   phase: RunState["phase"];
   floor: number;
   player: PlayerView;
@@ -104,6 +107,8 @@ function enemyView(e: EnemyState): EnemyView {
 export function toView(state: RunState): RunView {
   return {
     id: state.id,
+    character: state.character,
+    characterName: CHARACTERS[state.character].name,
     phase: state.phase,
     floor: state.floor,
     player: state.player,

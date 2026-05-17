@@ -13,7 +13,7 @@ export type Phase = "map" | "combat" | "reward" | "rest" | "victory" | "defeat";
 
 // Bump when the canonical RunState shape changes in a way that breaks
 // resume. Mismatched runs are silently abandoned on next load.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 // ---------------- Status effects -------------------------------------------
 // Vulnerable: target takes +50% attack damage. Ticks down at end of own turn.
@@ -100,6 +100,7 @@ export type RunState = {
   schemaVersion: number;
   id: string;
   userId: number;
+  character: import("./characters").CharacterId;
   seed: string;
   rngState: number;
   phase: Phase;

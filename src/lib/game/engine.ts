@@ -2,9 +2,8 @@ import { nanoid } from "nanoid";
 import { type RngState, next, randInt, shuffle, pick } from "@/lib/rng";
 import {
   CARDS,
-  REWARD_POOL_COMMON,
-  REWARD_POOL_RARE,
-  STARTER_DECK,
+  NEUTRAL_COMMON,
+  NEUTRAL_RARE,
   rollNextIntent,
   spawnEnemy,
   rollCombatEnemies,
@@ -12,6 +11,7 @@ import {
   rollBoss,
   dealAttackToPlayer
 } from "./content";
+import { CHARACTERS, type CharacterId } from "./characters";
 import type {
   CardId,
   CombatState,
@@ -33,7 +33,6 @@ import { SCHEMA_VERSION, emptyStatuses } from "./types";
 // API route, so the engine cannot be bypassed by a malformed client.
 // ============================================================================
 
-const PLAYER_MAX_HP = 60;
 const HAND_SIZE = 5;
 const MAX_ENERGY = 3;
 const FLOORS = 6;
@@ -53,7 +52,8 @@ function saveRng(state: RunState, rng: RngState): void {
 
 // --------------------------------------------------------------- Run setup --
 
-export function newRun(userId: number): RunState {
+export function newRun(userId: number, characterId: CharacterId): RunState {
+  const character = CHARACTERS[characterId];
   const seed = nanoid(16);
   const rng = { s: rngFromString(seed) };
   const map = generateMap(rng);
@@ -61,20 +61,21 @@ export function newRun(userId: number): RunState {
     schemaVersion: SCHEMA_VERSION,
     id: nanoid(12),
     userId,
+    character: character.id,
     seed,
     rngState: rng.s,
     phase: "map",
     floor: 1,
     player: {
-      hp: PLAYER_MAX_HP,
-      maxHp: PLAYER_MAX_HP,
+      hp: character.maxHp,
+      maxHp: character.maxHp,
       block: 0,
       energy: 0,
       maxEnergy: MAX_ENERGY,
       statuses: emptyStatuses()
     },
     gold: 0,
-    deck: [...STARTER_DECK],
+    deck: [...character.starterDeck],
     map,
     currentNodeId: null,
     combat: null,
@@ -406,12 +407,17 @@ function onCombatWon(state: RunState): void {
   const isBoss = node?.kind === "boss";
   state.gold += isElite ? GOLD_ELITE : isBoss ? GOLD_ELITE * 2 : GOLD_COMBAT;
 
-  // Build a reward of 3 cards. Elite / boss tip toward the rare pool.
+  // Build a reward of 3 cards from neutral + class pools.
+  // Elite / boss tip toward the rare pool.
+  const character = CHARACTERS[state.character];
+  const commonPool = [...NEUTRAL_COMMON, ...character.classCommon];
+  const rarePool = [...NEUTRAL_RARE, ...character.classRare];
   const rng = loadRng(state);
   const pool: CardId[] = [];
   const rareChance = isElite ? 0.6 : isBoss ? 0.9 : 0.15;
-  while (pool.length < 3) {
-    const draw = next(rng) < rareChance ? REWARD_POOL_RARE : REWARD_POOL_COMMON;
+  let attempts = 0;
+  while (pool.length < 3 && attempts++ < 30) {
+    const draw = next(rng) < rareChance ? rarePool : commonPool;
     const candidate = pick(rng, draw);
     if (!pool.includes(candidate)) pool.push(candidate);
   }

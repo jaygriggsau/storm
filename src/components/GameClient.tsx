@@ -8,6 +8,7 @@ import type {
   MapNodeView,
   StatusView
 } from "@/lib/game/view";
+import { CHARACTERS, type CharacterId } from "@/lib/game/characters";
 
 type Action =
   | { type: "chooseNode"; nodeId: string }
@@ -33,12 +34,12 @@ export default function GameClient() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const startRun = useCallback(async (force = false) => {
+  const startRun = useCallback(async (character: CharacterId, force = false) => {
     setBusy(true); setError(null);
     const res = await fetch("/api/game/new-run", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ force })
+      body: JSON.stringify({ force, character })
     });
     const data = await res.json();
     if (!res.ok) setError(data.error ?? "error");
@@ -66,16 +67,10 @@ export default function GameClient() {
 
   if (!run) {
     return (
-      <section className="mt-16 flex flex-col items-center gap-4">
-        <p className="text-slate-300">No active run.</p>
-        <button
-          disabled={busy}
-          onClick={() => startRun(false)}
-          className="rounded bg-storm-accent px-4 py-2 font-semibold text-storm-bg"
-        >
-          Begin climb
-        </button>
-      </section>
+      <CharacterSelect
+        disabled={busy}
+        onPick={(c) => startRun(c, false)}
+      />
     );
   }
 
@@ -120,7 +115,7 @@ export default function GameClient() {
         <Outcome title="Victory" tone="accent">
           <button
             disabled={busy}
-            onClick={() => startRun(true)}
+            onClick={() => setRun(null)}
             className="rounded bg-storm-accent px-4 py-2 font-semibold text-storm-bg"
           >
             Climb again
@@ -132,7 +127,7 @@ export default function GameClient() {
         <Outcome title="Defeated" tone="danger">
           <button
             disabled={busy}
-            onClick={() => startRun(true)}
+            onClick={() => setRun(null)}
             className="rounded bg-storm-accent px-4 py-2 font-semibold text-storm-bg"
           >
             Try again
@@ -146,12 +141,45 @@ export default function GameClient() {
 function Stats({ run }: { run: RunView }) {
   return (
     <div className="card-frame flex items-center justify-between rounded-lg px-4 py-3 text-sm">
+      <div className="font-display text-storm-accent">{run.characterName}</div>
       <div>Floor <span className="font-mono">{run.floor}</span></div>
       <div>HP <span className="font-mono">{run.player.hp}/{run.player.maxHp}</span></div>
       <div>Gold <span className="font-mono text-storm-gold">{run.gold}</span></div>
       <div>Deck <span className="font-mono">{run.deck.length}</span></div>
       <div className="uppercase tracking-wide text-slate-400">{run.phase}</div>
     </div>
+  );
+}
+
+function CharacterSelect({
+  disabled, onPick
+}: { disabled: boolean; onPick: (c: CharacterId) => void }) {
+  const entries = Object.values(CHARACTERS);
+  return (
+    <section className="mt-12 space-y-6">
+      <h2 className="text-center font-display text-3xl text-storm-accent">
+        Choose your climber
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {entries.map((c) => (
+          <button
+            key={c.id}
+            disabled={disabled}
+            onClick={() => onPick(c.id)}
+            className="card-frame flex flex-col items-start gap-3 rounded-lg p-6 text-left transition hover:-translate-y-1 disabled:opacity-50"
+          >
+            <h3 className="font-display text-2xl text-storm-accent">{c.name}</h3>
+            <p className="text-sm text-slate-300">{c.blurb}</p>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400">
+              <dt>Max HP</dt><dd className="text-slate-100">{c.maxHp}</dd>
+              <dt>Starter</dt><dd className="text-slate-100">{c.starterDeck.length} cards</dd>
+              <dt>Class commons</dt><dd className="text-slate-100">{c.classCommon.length}</dd>
+              <dt>Class rares</dt><dd className="text-slate-100">{c.classRare.length}</dd>
+            </dl>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
