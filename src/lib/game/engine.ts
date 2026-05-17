@@ -4,6 +4,9 @@ import {
   CARDS,
   NEUTRAL_COMMON,
   NEUTRAL_RARE,
+  executeEffects,
+  upgradeId,
+  isUpgraded,
   rollNextIntent,
   spawnEnemy,
   rollCombatEnemies,
@@ -223,12 +226,46 @@ export function chooseNode(state: RunState, nodeId: string): RunState {
   return state;
 }
 
-// --------------- Rest --------------------------------------------------------
+// --------------- Rest / Smith ------------------------------------------------
 
 export function restHeal(state: RunState): RunState {
   requirePhase(state, "rest");
   const amount = Math.floor(state.player.maxHp * REST_HEAL_FRACTION);
   state.player.hp = Math.min(state.player.maxHp, state.player.hp + amount);
+  state.phase = "map";
+  markAvailable(state);
+  return state;
+}
+
+export function restSmith(state: RunState): RunState {
+  requirePhase(state, "rest");
+  // If nothing in the deck can be upgraded, force-skip cleanly.
+  if (!state.deck.some((id) => upgradeId(id) !== null)) {
+    state.phase = "map";
+    markAvailable(state);
+    return state;
+  }
+  state.phase = "smith";
+  return state;
+}
+
+export function upgradeCard(state: RunState, deckIndex: number): RunState {
+  requirePhase(state, "smith");
+  if (!Number.isInteger(deckIndex) || deckIndex < 0 || deckIndex >= state.deck.length) {
+    throw badRequest("invalid deck index");
+  }
+  const current = state.deck[deckIndex]!;
+  if (isUpgraded(current)) throw badRequest("card already upgraded");
+  const next = upgradeId(current);
+  if (!next) throw badRequest("card has no upgrade");
+  state.deck[deckIndex] = next;
+  state.phase = "map";
+  markAvailable(state);
+  return state;
+}
+
+export function skipSmith(state: RunState): RunState {
+  requirePhase(state, "smith");
   state.phase = "map";
   markAvailable(state);
   return state;
@@ -310,7 +347,7 @@ export function playCard(
   combat.hand.splice(handIdx, 1);
 
   const rng = loadRng(state);
-  card.apply({
+  executeEffects(card.effects, {
     combat,
     target,
     rng,

@@ -1,5 +1,5 @@
 import type { RunState, EnemyState, CombatState, MapNode, Statuses } from "./types";
-import { CARDS, ENEMY_TEMPLATES } from "./content";
+import { CARDS, ENEMY_TEMPLATES, isUpgraded, upgradeId } from "./content";
 import { CHARACTERS } from "./characters";
 
 // The view layer is the anti-cheat barrier between the server's full state
@@ -19,6 +19,8 @@ export type CardView = {
   description: string;
   targeting: "enemy" | "self" | "all_enemies" | "none";
   exhaust: boolean;
+  upgraded: boolean;
+  upgradable: boolean;
 };
 
 export type StatusView = Statuses;
@@ -88,7 +90,9 @@ function cardView(id: string): CardView {
     cost: c.cost,
     description: c.description,
     targeting: c.targeting,
-    exhaust: !!c.exhaust
+    exhaust: !!c.exhaust,
+    upgraded: isUpgraded(c.id),
+    upgradable: !isUpgraded(c.id) && upgradeId(c.id) !== null
   };
 }
 

@@ -75,6 +75,7 @@ openssl rand -base64 32
 - **Status effects:** Vulnerable (+50% attack damage taken), Weak (−25% attack damage dealt), Strength (flat attack bonus). Vulnerable and Weak tick down at the end of the owner's turn.
 - **Enemies:** Goblin, Brute, Acid Slime, Tower Spider, Cultist, Tower Sentry, plus elites (Bandit Captain) and two possible bosses (Tower Guard, The Stormlord).
 - **Map:** 6 floors, branching, with combat / elite / rest / boss node kinds. Elites & bosses bias rewards toward the rare pool.
+- **Rest sites** offer a choice: **Rest** (heal 30% max HP) or **Smith** (upgrade one card in your deck to its `+` variant). Cards have a data-driven `effects: Effect[]` shape, so an upgrade is just a numeric tweak rather than a new code path.
 
 ## Adding content
 

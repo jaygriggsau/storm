@@ -9,7 +9,10 @@ import {
   pickReward,
   playCard,
   restHeal,
-  skipReward
+  restSmith,
+  skipReward,
+  skipSmith,
+  upgradeCard
 } from "@/lib/game/engine";
 import { toView } from "@/lib/game/view";
 import { take } from "@/lib/rate-limit";
@@ -26,7 +29,10 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("endTurn") }),
   z.object({ type: z.literal("pickReward"), cardId: z.string().max(64) }),
   z.object({ type: z.literal("skipReward") }),
-  z.object({ type: z.literal("restHeal") })
+  z.object({ type: z.literal("restHeal") }),
+  z.object({ type: z.literal("restSmith") }),
+  z.object({ type: z.literal("upgradeCard"), deckIndex: z.number().int().nonnegative().max(999) }),
+  z.object({ type: z.literal("skipSmith") })
 ]);
 
 const BodySchema = z.object({
@@ -69,6 +75,15 @@ export async function POST(req: Request) {
           break;
         case "restHeal":
           restHeal(s);
+          break;
+        case "restSmith":
+          restSmith(s);
+          break;
+        case "upgradeCard":
+          upgradeCard(s, action.deckIndex);
+          break;
+        case "skipSmith":
+          skipSmith(s);
           break;
       }
     });

@@ -9,7 +9,7 @@ export type EnemyTemplateId =
   | "bandit_captain"
   | "tower_guard"
   | "stormlord";
-export type Phase = "map" | "combat" | "reward" | "rest" | "victory" | "defeat";
+export type Phase = "map" | "combat" | "reward" | "rest" | "smith" | "victory" | "defeat";
 
 // Bump when the canonical RunState shape changes in a way that breaks
 // resume. Mismatched runs are silently abandoned on next load.

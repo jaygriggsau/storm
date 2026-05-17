@@ -16,7 +16,10 @@ type Action =
   | { type: "endTurn" }
   | { type: "pickReward"; cardId: string }
   | { type: "skipReward" }
-  | { type: "restHeal" };
+  | { type: "restHeal" }
+  | { type: "restSmith" }
+  | { type: "upgradeCard"; deckIndex: number }
+  | { type: "skipSmith" };
 
 export default function GameClient() {
   const [run, setRun] = useState<RunView | null>(null);
@@ -85,7 +88,21 @@ export default function GameClient() {
       )}
 
       {run.phase === "rest" && (
-        <RestPhase disabled={busy} onRest={() => doAction({ type: "restHeal" })} />
+        <RestPhase
+          run={run}
+          disabled={busy}
+          onRest={() => doAction({ type: "restHeal" })}
+          onSmith={() => doAction({ type: "restSmith" })}
+        />
+      )}
+
+      {run.phase === "smith" && (
+        <SmithPhase
+          run={run}
+          disabled={busy}
+          onUpgrade={(idx) => doAction({ type: "upgradeCard", deckIndex: idx })}
+          onSkip={() => doAction({ type: "skipSmith" })}
+        />
       )}
 
       {run.phase === "combat" && run.combat && (
@@ -259,19 +276,85 @@ function nodeTone(node: MapNodeView): string {
   return "border-slate-700 bg-slate-900/50 text-slate-500 opacity-50 cursor-not-allowed";
 }
 
-// -------------------------- Rest --------------------------------------------
+// -------------------------- Rest / Smith ------------------------------------
 
-function RestPhase({ disabled, onRest }: { disabled: boolean; onRest: () => void }) {
+function RestPhase({
+  run, disabled, onRest, onSmith
+}: {
+  run: RunView;
+  disabled: boolean;
+  onRest: () => void;
+  onSmith: () => void;
+}) {
+  const canSmith = run.deck.some((c) => c.upgradable);
   return (
     <div className="card-frame flex flex-col items-center gap-4 rounded-lg p-8">
       <h2 className="font-display text-2xl text-storm-accent">A bonfire flickers.</h2>
-      <p className="text-slate-300">Rest to recover 30% of your max HP.</p>
+      <p className="text-slate-300">Choose how to spend your respite.</p>
+      <div className="flex gap-4">
+        <button
+          disabled={disabled}
+          onClick={onRest}
+          className="rounded bg-storm-accent px-4 py-2 font-semibold text-storm-bg disabled:opacity-30"
+        >
+          Rest (heal 30% HP)
+        </button>
+        <button
+          disabled={disabled || !canSmith}
+          onClick={onSmith}
+          className="rounded bg-storm-gold px-4 py-2 font-semibold text-storm-bg disabled:opacity-30"
+          title={canSmith ? undefined : "All cards in your deck are already upgraded"}
+        >
+          Smith (upgrade a card)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SmithPhase({
+  run, disabled, onUpgrade, onSkip
+}: {
+  run: RunView;
+  disabled: boolean;
+  onUpgrade: (deckIndex: number) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="card-frame rounded-lg p-6">
+      <h2 className="mb-2 font-display text-xl">At the smith's anvil</h2>
+      <p className="mb-4 text-sm text-slate-400">Choose a card to upgrade.</p>
+      <div className="flex flex-wrap gap-3">
+        {run.deck.map((c, i) => {
+          const ok = c.upgradable;
+          return (
+            <button
+              key={`${c.id}-${i}`}
+              onClick={() => onUpgrade(i)}
+              disabled={disabled || !ok}
+              className={`card-frame w-44 rounded-lg p-3 text-left transition ${
+                ok ? "hover:-translate-y-1" : "opacity-40 cursor-not-allowed"
+              }`}
+              title={ok ? undefined : c.upgraded ? "Already upgraded" : "Cannot be upgraded"}
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-semibold">
+                  {c.name}
+                  {c.upgraded && <span className="ml-1 text-storm-gold">★</span>}
+                </div>
+                <div className="rounded-full bg-storm-accent px-2 text-xs font-bold text-storm-bg">{c.cost}</div>
+              </div>
+              <div className="mt-2 text-xs text-slate-300">{c.description}</div>
+            </button>
+          );
+        })}
+      </div>
       <button
         disabled={disabled}
-        onClick={onRest}
-        className="rounded bg-storm-accent px-4 py-2 font-semibold text-storm-bg"
+        onClick={onSkip}
+        className="mt-4 text-sm text-slate-400 underline"
       >
-        Rest
+        Leave without upgrading
       </button>
     </div>
   );
